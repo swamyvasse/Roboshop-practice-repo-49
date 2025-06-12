@@ -1,16 +1,13 @@
-- name: install user component
-  hosts: user
+- name: install shipping component
+  hosts: shipping
   become: 'yes'
   tasks:
-    - name: Setup NodeJS repos
-      ansible.builtin.shell: "curl -sL https://rpm.nodesource.com/setup_lts.x | bash"
-
-    - name: Install NodeJS
+    - name: Install maven
       ansible.builtin.yum:
-        name: nodejs
+        name: maven
         state: installed
 
-    - name: Check roboshop user exist or not 
+    - name: Check roboshop user exist or not
       ansible.builtin.command: id roboshop
       register: out
       ignore_errors: 'yes'
@@ -36,46 +33,53 @@
         path: /app
         state: directory
 
-    - name: Download user artifact
+    - name: Download shipping artifact
       ansible.builtin.get_url:
-        url: https://roboshop-builds.s3.amazonaws.com/user.zip
+        url: https://roboshop-builds.s3.amazonaws.com/shipping.zip
         dest: /tmp
 
-    - name: Extract user artifact
+    - name: Extract shipping artifact
       ansible.builtin.unarchive:
-        src: /tmp/user.zip
+        src: /tmp/shipping.zip
         dest: /app
         remote_src: 'yes'
 
     - name: download the dependencies
-      ansible.builtin.command: npm install
+      ansible.builtin.command: mvn clean package
       args:
         chdir: /app
 
-    - name: Copy file user.service
+    - name: rename shipping.jar
+      ansible.builtin.command: mv target/shipping-1.0.jar shipping.jar
+      args:
+        chdir: /app
+
+    - name: Copy file shipping.service
       ansible.builtin.copy:
-        src: user.service
-        dest: /etc/systemd/system/user.service
+        src: shipping.service
+        dest: /etc/systemd/system/shipping.service
 
     - name: daemon-reload
       ansible.builtin.systemd:
         daemon_reload: true
 
-    - name: Copy file mongo.repo to yum.repos.d
-      ansible.builtin.copy:
-        src: mongo.repo
-        dest: /etc/yum.repos.d/mongo.repo
-
-    - name: Install mongodb-org-shell
-      ansible.builtin.yum:
-        name: mongodb-org-shell
-        state: installed
-
-    - name: load user data
-      ansible.builtin.command: mongo --host MONGODB-SERVER-IPADDRESS < /app/schema/user.js
-    
     - name: Start and Enable service
       ansible.builtin.service:
-        name: user
+        name: shipping
         state: started
         enabled: 'yes'
+
+    - name: install mysql
+      ansible.builtin.yum:
+        name: mysql
+        state: installed
+
+    - name: load shipping data
+      ansible.builtin.command: >-
+        mysql -h <MYSQL-SERVER-IPADDRESS> -uroot -pRoboShop@1 <
+        /app/schema/shipping.sql
+        
+    - name: restart shipping service
+      ansible.builtin.service:
+        name: shipping
+        state: restarted
