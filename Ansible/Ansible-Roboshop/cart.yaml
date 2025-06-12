@@ -1,5 +1,5 @@
-- name: install catalogue component
-  hosts: catalogue
+- name: install cart component
+  hosts: cart
   become: 'yes'
   tasks:
     - name: Setup NodeJS repos
@@ -10,7 +10,7 @@
         name: nodejs
         state: installed
 
-    - name: Check roboshop user exist or not 
+    - name: Check roboshop user exist or not
       ansible.builtin.command: id roboshop
       register: out
       ignore_errors: 'yes'
@@ -36,14 +36,14 @@
         path: /app
         state: directory
 
-    - name: Download catalogue artifact
+    - name: Download cart artifact
       ansible.builtin.get_url:
-        url: https://roboshop-builds.s3.amazonaws.com/catalogue.zip
+        url: https://roboshop-builds.s3.amazonaws.com/cart.zip
         dest: /tmp
 
-    - name: Extract catalogue artifact
+    - name: Extract cart artifact
       ansible.builtin.unarchive:
-        src: /tmp/catalogue.zip
+        src: /tmp/cart.zip
         dest: /app
         remote_src: 'yes'
 
@@ -52,30 +52,17 @@
       args:
         chdir: /app
 
-    - name: Copy file catalogue.service
+    - name: Copy file cart.service
       ansible.builtin.copy:
-        src: catalogue.service
-        dest: /etc/systemd/system/catalogue.service
+        src: cart.service
+        dest: /etc/systemd/system/cart.service
 
     - name: daemon-reload
       ansible.builtin.systemd:
         daemon_reload: true
-
-    - name: Copy file mongo.repo to yum.repos.d
-      ansible.builtin.copy:
-        src: mongo.repo
-        dest: /etc/yum.repos.d/mongo.repo
-
-    - name: Install mongodb-org-shell
-      ansible.builtin.yum:
-        name: mongodb-org-shell
-        state: installed
-
-    - name: load catalogue data
-      ansible.builtin.command: mongo --host MONGODB-SERVER-IPADDRESS < /app/schema/catalogue.js
-    
+        
     - name: Start and Enable service
       ansible.builtin.service:
-        name: catalogue
+        name: cart
         state: started
         enabled: 'yes'
